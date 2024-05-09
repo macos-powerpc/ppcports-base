@@ -7537,10 +7537,16 @@ fi
 			10.1[4-9]*)
 				UNIVERSAL_ARCHS="x86_64"
 			;;
-			10.[0-5]*)
+			10.[0-4]*)
 				UNIVERSAL_ARCHS="i386 ppc"
 			;;
-			10.[6-9]*)
+			10.5*)
+				UNIVERSAL_ARCHS="ppc ppc64"
+			;;
+			10.6*)
+				UNIVERSAL_ARCHS="i386 ppc"
+			;;
+			10.[7-9]*)
 				UNIVERSAL_ARCHS="x86_64 i386"
 			;;
 			*)
