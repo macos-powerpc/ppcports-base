@@ -1689,7 +1689,7 @@ match macports.conf.default."
         }
     }
     if {![info exists cxx_stdlib]} {
-        if {$os_platform eq "darwin" && $os_major >= 10} {
+        if {$os_platform eq "darwin" && $os_major >= 11} {
             set cxx_stdlib libc++
         } elseif {$os_platform eq "darwin"} {
             set cxx_stdlib libstdc++
