@@ -3,6 +3,7 @@
 # Downloaded archives will only be used if they can be verified by one
 # of the public keys listed here. Use absolute paths, one per line.
 
+@prefix_expanded@/share/macports/macos-powerpc-pubkey.pem
 @prefix_expanded@/share/macports/macports-pubkey.pem
 
 # To distribute archives of your own, generate a key pair:
