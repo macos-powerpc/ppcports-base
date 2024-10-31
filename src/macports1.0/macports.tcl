@@ -1487,13 +1487,8 @@ Please edit sources.conf and change '$url' to '[string range $url 0 26]macports/
         unset portimage_mode
     }
     if {![info exists portimage_mode]} {
-        # Using an extracted directory is usually only a good idea if
-        # the filesystem supports COW clones.
-        if {![catch {fs_clone_capable [file join $portdbpath software]} result] && $result} {
-            set portimage_mode directory
-        } else {
-            set portimage_mode archive
-        }
+        # Default to archive mode
+        set portimage_mode archive
     }
     set portimage::keep_imagedir [expr {$portimage_mode ne "archive"}]
     set portimage::keep_archive [expr {$portimage_mode ne "directory"}]
