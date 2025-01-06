@@ -1910,7 +1910,11 @@ proc get_statefile_value {class fd result} {
 
 # check_statefile
 # Check completed/selected state of target/variant $id
-proc check_statefile {class id fd} {
+proc check_statefile {class id {fd {}}} {
+    global target_state_fd
+    if {$fd eq {} && [info exists target_state_fd]} {
+        set fd $target_state_fd
+    }
     seek $fd 0
     while {[gets $fd line] >= 0} {
         if {$line eq "$class: $id"} {
@@ -1922,7 +1926,11 @@ proc check_statefile {class id fd} {
 
 # write_statefile
 # Set target $id completed in the state file
-proc write_statefile {class id fd} {
+proc write_statefile {class id {fd {}}} {
+    global target_state_fd
+    if {$fd eq {} && [info exists target_state_fd]} {
+        set fd $target_state_fd
+    }
     if {[check_statefile $class $id $fd]} {
         return 0
     }
