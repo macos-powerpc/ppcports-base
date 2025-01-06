@@ -2678,14 +2678,44 @@ proc PortGroup {group version} {
         }
     }
 
-    set groupFile [getportresourcepath $porturl "port1.0/group/${group}-${version}.tcl"]
+    # optionally look first in the port's own tree (the old default behaviour)
+    set ownfirst [lsearch [getlocaltreeoptions [file dirname [getportresourcepath $porturl]]] own_portgroups_first]
+    if {${ownfirst} >= 0} {
+        # check if the requested PortGroup exists in the current port's ports tree, but
+        # don't return a fallback variant.
+        set groupFile [getportresourcepath $porturl "port1.0/group/${group}-${version}.tcl" no]
+    }
+    if {![info exists groupFile] || ![file exists ${groupFile}]} {
+        # no luck, scan the ports tree list in much the same way port lookup works:
+        # test each tree in the order they are listed in sources.conf, until a hit is found.
+        set lsources [getlocalporttreelist]
+        foreach source ${lsources} {
+            set groupFile [file join ${source} _resources port1.0/group/${group}-${version}.tcl]
+            if {[file exists ${groupFile}]} {
+                ui_debug "PortGroup ${group} ${version} found in $source"
+                break
+            }
+        }
+        if {![info exists groupFile] || ![file exists ${groupFile}]} {
+            # still nothing; redo the resource lookup but this time with a fallback.
+            # This should catch situations where port trees are configured with a
+            # protocol that is not "file://".
+            set groupFile [getportresourcepath $porturl "port1.0/group/${group}-${version}.tcl"]
+        }
+    } else {
+        ui_debug "Custom PortGroup ${group} ${version} found: $groupFile"
+    }
 
     if {[file exists $groupFile]} {
         lappend PortInfo(portgroups) [list $group $version $groupFile]
         uplevel [list source $groupFile]
-        ui_debug "Sourcing PortGroup $group $version from $groupFile"
+        ui_debug "Sourced PortGroup $group $version from $groupFile"
     } else {
         ui_error "${subport}: PortGroup ${group} ${version} could not be located. ${group}-${version}.tcl does not exist."
+        ui_info "         Trees checked: [getallporttrees]"
+        if {${ownfirst} >= 0} {
+            ui_info "         Also checked for [getportresourcepath $porturl "port1.0/group/${group}-${version}.tcl" no]"
+        }
         return -code error "PortGroup not found"
     }
 }
