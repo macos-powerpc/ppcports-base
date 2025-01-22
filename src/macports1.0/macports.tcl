@@ -2511,6 +2511,8 @@ proc macports::getlocalporttreelist {} {
     foreach source $sources {
         if {[macports::getprotocol $source] eq "file"} {
             lappend sourcetreelist [string range [lindex ${source} 0] 7 end]
+        } elseif {[macports::getprotocol $source] eq "rsync"} {
+            lappend sourcetreelist [getsourcepath $source]
         }
     }
     return ${sourcetreelist}
