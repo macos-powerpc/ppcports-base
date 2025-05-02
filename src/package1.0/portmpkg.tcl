@@ -48,7 +48,7 @@ set_ui_prefix
 
 proc portmpkg::mpkg_main {args} {
     global package.flat os.major package.destpath subport epoch version revision
-    if {!${package.flat} || ${os.major} < 10} {
+    if {!${package.flat} || ${os.major} < 11} {
         # Make sure the destination path exists.
         file mkdir ${package.destpath}
     }
@@ -189,7 +189,7 @@ proc portmpkg::mpkg_path {portname portversion portrevision} {
 }
 
 proc portmpkg::package_mpkg {portname portepoch portversion portrevision} {
-    global os.major workpath porturl description long_description homepage \
+    global os.major os.arch workpath porturl description long_description homepage \
            package.flat package.destpath
 
     set mpkgpath [portmpkg::mpkg_path $portname $portversion $portrevision]
@@ -226,7 +226,7 @@ proc portmpkg::package_mpkg {portname portepoch portversion portrevision} {
     # copy our own pkg into the mpkg
     system "cp -PR [shellescape ${pkgpath}] [shellescape ${packages_path}]"
 
-    if {!${package.flat} || ${os.major} < 10} {
+    if {!${package.flat} || ${os.major} < 11} {
         global prefix
         portpkg::write_PkgInfo ${mpkgpath}/Contents/PkgInfo
         mpkg_write_info_plist ${mpkgpath}/Contents/Info.plist $portname $portversion $portrevision $prefix $dependencies
@@ -244,7 +244,7 @@ proc portmpkg::package_mpkg {portname portepoch portversion portrevision} {
     portpkg::write_welcome_html ${resources_path}/Welcome.html $portname $portversion $portrevision $pkg_long_description $pkg_description $pkg_homepage
     file copy -force -- [getportresourcepath $porturl "port1.0/package/background.tiff"] ${resources_path}/background.tiff
 
-    if {${package.flat} && ${os.major} >= 10} {
+    if {${package.flat} && ${os.major} >= 10 && ${os.arch} ne "powerpc"} {
         write_distribution ${workpath}/Distribution $portname $dependencies
         set productbuild [findBinary productbuild]
         set v [portpkg::mp_version_to_apple_version $portepoch $portversion $portrevision]
