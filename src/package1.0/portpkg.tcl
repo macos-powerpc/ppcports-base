@@ -60,7 +60,7 @@ proc portpkg::pkg_start {args} {
     global packagemaker_path xcodeversion porturl \
            package.resources package.scripts package.flat \
            subport version revision description long_description \
-           homepage workpath
+           homepage workpath os.arch
     variable packagemaker
     variable pkgbuild
     variable language
