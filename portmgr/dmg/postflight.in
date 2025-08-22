@@ -102,13 +102,8 @@ function update_macports {
     "${TCLSH}" "${SCRIPT_DIR}/dedup_portfiles.tcl"
     "${TCLSH}" "${SCRIPT_DIR}/cxx_stdlib_overridden.tcl"
 
-    echo "Synchronizing the MacPorts installation with the project's rsync server..."
-    if ! "${BINPATH}/port" -v selfupdate; then 
-        echo "An attempt to synchronize your recent MacPorts installation with the project's rsync server failed!"
-        echo "Please run 'sudo port -d selfupdate' manually to find out the cause of the error."
-    else
-        echo "Successful!"
-    fi
+    echo "Please run 'sudo port sync' to update ports sources."
+    echo "Successful!"
 }
 
 # Through this command we write an environment variable to an appropriate shell configuration file,
