@@ -1296,9 +1296,9 @@ proc portconfigure::get_gcc_compilers {} {
     global os.major porturl
     set compilers [list]
     set compiler_file [getportresourcepath $porturl "port1.0/compilers/gcc_compilers.tcl"]
-    if {[file exists ${compiler_file}]} {
-        source ${compiler_file}
-    } else {
+#     if {[file exists ${compiler_file}]} {
+#         source ${compiler_file}
+#     } else {
         ui_debug "gcc_compilers.tcl not found in ports tree, using built-in selections"
 
         lappend compilers macports-gcc-16 macports-gcc-15 macports-gcc-14 macports-gcc-13 macports-gcc-12 macports-gcc-11 macports-gcc-10
@@ -1311,7 +1311,7 @@ proc portconfigure::get_gcc_compilers {} {
         if {${os.major} >= 10} {
             lappend compilers macports-gcc-devel
         }
-    }
+#    }
     return ${compilers}
 }
 # utility procedure: get MPI wrapper for a given compiler
