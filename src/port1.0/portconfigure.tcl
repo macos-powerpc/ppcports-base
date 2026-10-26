@@ -1742,6 +1742,12 @@ proc portconfigure::add_compiler_port_dependencies {compiler} {
                 depends_lib-delete $libgcc_dep
                 depends_lib-append $libgcc_dep
             }
+            if {${configure.cxx_stdlib} eq "libc++"} {
+                # With GCC always use the modern libc++
+                ui_debug "Adding depends_lib libcxx"
+                depends_lib-delete "port:libcxx"
+                depends_lib-append "port:libcxx"
+            }
         } elseif {[regexp {^macports-clang(?:-(\d+(?:\.\d+)?))$} $compiler -> clang_version]} {
             global configure.cxx_stdlib compiler.openmp_version
             if {${configure.cxx_stdlib} eq "macports-libstdc++"} {
