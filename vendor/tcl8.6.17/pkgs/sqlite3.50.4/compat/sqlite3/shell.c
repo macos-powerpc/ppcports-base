@@ -2425,7 +2425,7 @@ SQLITE_EXTENSION_INIT1
      defined(_M_AMD64) || defined(_M_ARM)     || defined(__x86)   ||    \
      defined(__arm__)
 #   define SHA3_BYTEORDER    1234
-# elif defined(sparc)    || defined(__ppc__)
+# elif defined(sparc)    || defined(__POWERPC__)
 #   define SHA3_BYTEORDER    4321
 # else
 #   define SHA3_BYTEORDER 0
