@@ -72,8 +72,9 @@ default configure.cxxflags \
 default configure.libcxx_port           auto
 default configure.objcxx                {[portconfigure::configure_get_compiler objcxx]}
 default configure.objcxx_archflags      {[portconfigure::configure_get_archflags objcxx]}
-# No current reason for OBJCXXFLAGS to differ from CXXFLAGS.
-default configure.objcxxflags           {${configure.cxxflags}}
+# OBJCXXFLAGS are CXXFLAGS, with the C++ library flags of configure.objcxx
+default configure.objcxxflags \
+        {[portconfigure::construct_objcxxflags ${configure.cxxflags}]}
 default configure.universal_cxxflags    {[portconfigure::configure_get_universal_archflags]}
 default configure.universal_objcxxflags {${configure.universal_cxxflags}}
 
@@ -104,33 +105,45 @@ proc portconfigure::libcxx_port_wanted {} {
     }
     return [tbool configure.libcxx_port]
 }
-# Whether configure.cxx uses libc++ from the libcxx port
-proc portconfigure::use_libcxx_port {} {
-    global configure.cxx configure.cxx_stdlib configure.libcxx_port
-    if {[string match *clang* ${configure.cxx}]} {
+# Whether the given C++ compiler would use libc++ from the libcxx port
+proc portconfigure::compiler_uses_libcxx_port {compiler} {
+    global configure.cxx_stdlib configure.libcxx_port
+    if {[string match *clang* $compiler]} {
         return [portconfigure::libcxx_port_wanted]
     }
     # libc++ has no availability markup for GCC, so the libc++ headers of
     # MacPorts GCC assume that the dylib has everything they declare, which
     # only holds for the one of the libcxx port, whatever the OS version.
     # (*g*-mp-* would also match clang++-mp-*, handled above.)
-    if {${configure.cxx_stdlib} eq "libc++" && [string match *g*-mp-* ${configure.cxx}]} {
+    if {${configure.cxx_stdlib} eq "libc++" && [string match *g*-mp-* $compiler]} {
         return [expr {${configure.libcxx_port} eq "auto" || [tbool configure.libcxx_port]}]
     }
     return 0
 }
+# Whether the port uses libc++ from the libcxx port. Then both configure.cxx
+# and configure.objcxx do, since their code is linked with that libc++.
+proc portconfigure::use_libcxx_port {} {
+    global configure.cxx configure.objcxx
+    return [expr {[portconfigure::compiler_uses_libcxx_port ${configure.cxx}]
+                  || [portconfigure::compiler_uses_libcxx_port ${configure.objcxx}]}]
+}
+# Some PortGroups replace this proc, so it keeps taking no arguments
 proc portconfigure::should_add_stdlib {} {
-    global configure.cxx configure.cxx_stdlib
+    global configure.cxx
+    return [portconfigure::compiler_takes_stdlib ${configure.cxx}]
+}
+proc portconfigure::compiler_takes_stdlib {compiler} {
+    global configure.cxx_stdlib
     if {${configure.cxx_stdlib} eq ""} {
         return 0
     }
-    if {[string match *clang* ${configure.cxx}]} {
+    if {[string match *clang* $compiler]} {
         return 1
     }
     # GCC also supports -stdlib starting with GCC 10 (and devel), but
     # PPC builds only need -stdlib=libc++ (-stdlib=libstdc++ is implicit default).
     global configure.build_arch
-    if {[string match *g*-mp-* ${configure.cxx}]
+    if {[string match *g*-mp-* $compiler]
             && (${configure.build_arch} ni {ppc ppc64} || ${configure.cxx_stdlib} eq "libc++")} {
         # Do not pass stdlib to gcc if it is MacPorts custom macports-libstdc++ setting
         # as gcc does not uderstand this. Instead do nothing, which means gcc will
@@ -138,7 +151,7 @@ proc portconfigure::should_add_stdlib {} {
         # configure.cxx_stdlib=macports-libstdc++
         if {${configure.cxx_stdlib} ne "macports-libstdc++"} {
             # Extract gcc version from value after last -
-            set gcc_ver [lindex [split ${configure.cxx} "-"] end]
+            set gcc_ver [lindex [split $compiler "-"] end]
             if { ${gcc_ver} eq "devel" || ${gcc_ver} >= 10 } {
                 return 1
             }
@@ -158,43 +171,69 @@ proc portconfigure::should_add_cxx_abi {} {
                   ${configure.cxx_stdlib} eq "macports-libstdc++"}]
 }
 proc portconfigure::construct_cxxflags {flags} {
-    if {[portconfigure::should_add_stdlib]} {
-        global configure.cxx_stdlib
+    global configure.cxx
+    lappend flags {*}[portconfigure::stdlib_flags ${configure.cxx}]
+    return $flags
+}
+proc portconfigure::construct_objcxxflags {flags} {
+    global configure.cxx configure.objcxx
+    if {${configure.objcxx} eq ${configure.cxx}} {
+        return $flags
+    }
+    foreach flag [portconfigure::stdlib_flags_in $flags] {
+        set flags [ldelete $flags $flag]
+    }
+    lappend flags {*}[portconfigure::stdlib_flags ${configure.objcxx}]
+    return $flags
+}
+# The C++ library flags for the given C++ compiler
+proc portconfigure::stdlib_flags {compiler} {
+    global configure.cxx configure.cxx_stdlib
+    set flags [list]
+    if {$compiler eq ${configure.cxx}} {
+        set add_stdlib [portconfigure::should_add_stdlib]
+    } else {
+        set add_stdlib [portconfigure::compiler_takes_stdlib $compiler]
+    }
+    if {$add_stdlib} {
         lappend flags -stdlib=${configure.cxx_stdlib}
     }
     if {[portconfigure::should_add_cxx_abi]} {
         lappend flags -D_GLIBCXX_USE_CXX11_ABI=0
     }
-    lappend flags {*}[portconfigure::libcxx_port_cxxflags]
+    lappend flags {*}[portconfigure::libcxx_port_cxxflags $compiler]
     return $flags
+}
+# The C++ library flags found in the given flags
+proc portconfigure::stdlib_flags_in {flags} {
+    global prefix
+    return [concat [lsearch -all -inline $flags -stdlib=*] \
+                   [lsearch -all -exact -inline $flags -D_GLIBCXX_USE_CXX11_ABI=0] \
+                   [lsearch -all -exact -inline $flags -stdlib++-isystem${prefix}/libexec/libcxx/include/c++/v1]]
 }
 # Clang takes the libc++ headers from the SDK (or its own); replace them with
 # those of the libcxx port. GCC is configured with them.
-proc portconfigure::libcxx_port_cxxflags {} {
-    global configure.cxx prefix
-    if {[string match *clang* ${configure.cxx}] && [portconfigure::use_libcxx_port]} {
+proc portconfigure::libcxx_port_cxxflags {compiler} {
+    global prefix
+    if {[string match *clang* $compiler] && [portconfigure::use_libcxx_port]} {
         return [list -stdlib++-isystem${prefix}/libexec/libcxx/include/c++/v1]
     }
     return {}
 }
 proc portconfigure::stdlib_trace {opt action args} {
-    global $opt prefix
-    foreach flag [lsearch -all -inline [set $opt] -stdlib=*] {
+    global $opt
+    foreach flag [portconfigure::stdlib_flags_in [set $opt]] {
         $opt-delete $flag
     }
-    foreach flag [lsearch -all -exact -inline [set $opt] -D_GLIBCXX_USE_CXX11_ABI=0] {
-        $opt-delete $flag
-    }
-    $opt-delete -stdlib++-isystem${prefix}/libexec/libcxx/include/c++/v1
     if {$action eq "read"} {
-        if {[portconfigure::should_add_stdlib]} {
-            global configure.cxx_stdlib
-            $opt-append -stdlib=${configure.cxx_stdlib}
+        if {$opt eq "configure.objcxxflags"} {
+            global configure.objcxx
+            set compiler ${configure.objcxx}
+        } else {
+            global configure.cxx
+            set compiler ${configure.cxx}
         }
-        if {[portconfigure::should_add_cxx_abi]} {
-            $opt-append -D_GLIBCXX_USE_CXX11_ABI=0
-        }
-        foreach flag [portconfigure::libcxx_port_cxxflags] {
+        foreach flag [portconfigure::stdlib_flags $compiler] {
             $opt-append $flag
         }
     }
