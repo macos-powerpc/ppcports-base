@@ -1468,7 +1468,7 @@ proc compiler.command_line_tools_version {compiler} {
 }
 # internal function to choose compiler fallback list based on platform
 proc portconfigure::get_compiler_fallback {} {
-    global default_compilers xcodeversion os.subplatform \
+    global default_compilers xcodeversion os.major os.subplatform \
            configure.build_arch compiler.mpi
 
     # Check our override
@@ -1523,13 +1523,15 @@ proc portconfigure::get_compiler_fallback {} {
     set compilers [list]
     lappend compilers {*}${system_compilers}
     # when building for PowerPC architectures, prefer GCC to Clang; also when
-    # libc++ has to come from the libcxx port, which GCC is set up for
+    # libc++ has to come from the libcxx port on systems without one (later
+    # SDKs need Clang for Objective-C)
     set cur_arch ${configure.build_arch}
     if {$cur_arch eq ""} {
         global build_arch
         set cur_arch ${build_arch}
     }
-    if {$cur_arch in {ppc ppc64} || [portconfigure::libcxx_port_wanted]} {
+    if {$cur_arch in {ppc ppc64}
+            || (${os.major} < 11 && [portconfigure::libcxx_port_wanted])} {
         lappend compilers {*}${gcc_compilers}
         lappend compilers {*}${clang_compilers}
     } else {
