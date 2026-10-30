@@ -2082,6 +2082,7 @@ proc macports::worker_init {workername portpath porturl portbuildpath options va
     $workername alias getportresourcepath macports::getportresourcepath
     $workername alias getportlogpath macports::getportlogpath
     $workername alias getdefaultportresourcepath macports::getdefaultportresourcepath
+    $workername alias getportcompilerspath macports::getportcompilerspath
     $workername alias getlocalporttreelist macports::getlocalporttreelist
     $workername alias getlocaltreeoptions macports::getlocaltreeoptions
     $workername alias getallporttrees macports::getallporttrees
@@ -2500,6 +2501,56 @@ proc macports::getdefaultportresourcepath {{path {}}} {
     set proposedpath [file join $proposedpath _resources $path]
 
     return $proposedpath
+}
+
+##
+# Whether a source URL is the MacPorts ports tree or one of its mirrors
+#
+# @param url source URL
+# @return 1 if it is, 0 otherwise
+proc macports::is_macports_source {url} {
+    return [regexp -nocase {^[a-z]+://([^/]*\.)?macports\.org(:[0-9]+)?/|^[a-z]+://(www\.)?github\.com/macports/} $url]
+}
+
+##
+# Get the path to a file in _resources/port1.0/compilers, from the port's
+# own tree or else the first tree in sources.conf that has it. The trees of
+# the MacPorts ports tree and its mirrors are skipped, since their compiler
+# lists are made for the base of MacPorts.
+#
+# @param url port URL
+# @param name file name
+# @return path to the file, or an empty string if no tree has it
+proc macports::getportcompilerspath {url name} {
+    variable sources
+
+    set macports_trees [list]
+    set trees [list]
+    foreach source $sources {
+        set source_url [lindex $source 0]
+        if {[getprotocol $source_url] eq "file"} {
+            set tree [getportdir $source_url]
+        } else {
+            set tree [file normalize [getsourcepath $source_url]]
+        }
+        if {[is_macports_source $source_url]} {
+            lappend macports_trees $tree
+        } else {
+            lappend trees $tree
+        }
+    }
+    set own_tree [file normalize [file dirname [getportresourcepath $url {} no]]]
+    if {$own_tree ni $macports_trees} {
+        set trees [linsert $trees 0 $own_tree]
+    }
+
+    foreach tree $trees {
+        set path [file join $tree _resources port1.0 compilers $name]
+        if {[file exists $path]} {
+            return $path
+        }
+    }
+    return {}
 }
 
 ##
